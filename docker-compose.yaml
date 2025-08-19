@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  demo_01_service_01:
+    build: ./service_01
+    container_name: demo_01_service_01
+    ports:
+      - "5000:80"
+    volumes:
+      - ./service_01:/code
+    depends_on:
+      - demo_01_service_01_mongodb
+    networks:
+      - demo_01
+
+  demo_01_service_01_mongodb:
+    image: mongo:5.0
+    container_name: demo_01_service_01_mongodb
+    volumes:
+      - demo_01_service_01_mongodb_container:/data/db
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - demo_01
+
+  demo_01_service_02:
+    build: ./service_02
+    container_name: demo_01_service_02
+    ports:
+      - "5001:80"
+    volumes:
+      - ./service_02:/code
+    depends_on:
+      - demo_01_service_02_mongodb
+    networks:
+      - demo_01
+
+  demo_01_service_02_mongodb:
+    image: mongo:5.0
+    container_name: demo_01_service_02_mongodb
+    volumes:
+      - demo_01_service_02_mongodb_container:/data/db
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - demo_01
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: loki
+    command: -config.file=/etc/loki/config/loki-config.yml
+    volumes:
+      - ./loki-config.yml:/etc/loki/config/loki-config.yml:ro
+    ports:
+      - "3100:3100"
+    networks:
+      - demo_01
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: promtail
+    command: -config.file=/etc/promtail/config/promtail-config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - demo_01
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - loki
+    networks:
+      - demo_01
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  demo_01_service_01_mongodb_container:
+  demo_01_service_02_mongodb_container:
+  grafana_data:
+
+networks:
+  demo_01:
+    driver: bridge
